@@ -1,0 +1,160 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0f172a;
+}
+
+.card {
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.card h1 {
+  font-size: 22px;
+  color: #f1f5f9;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.sub {
+  color: #94a3b8;
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.infoBox {
+  background: #0c1626;
+  border-left: 4px solid #3b82f6;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  color: #cbd5e1;
+}
+
+.infoBox b {
+  display: block;
+  margin-bottom: 8px;
+  color: #f1f5f9;
+}
+
+.infoBox ul {
+  margin-left: 18px;
+  line-height: 1.9;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.field input {
+  background: #0c1626;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: #e2e8f0;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field input:focus {
+  border-color: #3b82f6;
+}
+
+.field input:disabled {
+  opacity: 0.5;
+}
+
+.error {
+  color: #f87171;
+  font-size: 14px;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border-left: 3px solid #ef4444;
+}
+
+.btn {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 4px;
+}
+
+.btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn:disabled {
+  background: #475569;
+  cursor: not-allowed;
+}
+
+/* Success state */
+.successIcon {
+  width: 64px;
+  height: 64px;
+  background: #22c55e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: white;
+  margin: 0 auto 24px;
+}
+
+.linkBtn {
+  display: block;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  margin: 20px 0 12px;
+  transition: background 0.15s;
+}
+
+.linkBtn:hover {
+  background: #2563eb;
+}
+
+.hint {
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
