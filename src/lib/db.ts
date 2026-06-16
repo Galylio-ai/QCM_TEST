@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { getStore } from '@netlify/blobs';
 
 export type SessionEvent = {
   type: string;
@@ -29,26 +28,45 @@ export type Session = {
   recordings: Recording[];
 };
 
-export type DB = {
-  sessions: Record<string, Session>;
-};
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-export const REC_DIR = path.join(DATA_DIR, 'recordings');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
-
-function ensureDirs() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(REC_DIR)) fs.mkdirSync(REC_DIR, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({ sessions: {} }, null, 2));
+function sessionsStore() {
+  return getStore('qcm-sessions');
 }
 
-export function loadDB(): DB {
-  ensureDirs();
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+function recordingsStore() {
+  return getStore('qcm-recordings');
 }
 
-export function saveDB(db: DB) {
-  ensureDirs();
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+export async function getSession(token: string): Promise<Session | null> {
+  const store = sessionsStore();
+  return store.get(token, { type: 'json' });
+}
+
+export async function saveSession(session: Session): Promise<void> {
+  const store = sessionsStore();
+  await store.set(session.token, JSON.stringify(session));
+}
+
+export async function deleteSession(token: string): Promise<void> {
+  const store = sessionsStore();
+  await store.delete(token);
+}
+
+export async function listSessions(): Promise<Session[]> {
+  const store = sessionsStore();
+  const { blobs } = await store.list();
+  if (!blobs.length) return [];
+  const sessions = await Promise.all(
+    blobs.map(b => store.get(b.key, { type: 'json' }) as Promise<Session>)
+  );
+  return sessions.filter(Boolean);
+}
+
+export async function saveRecording(filename: string, data: Buffer): Promise<void> {
+  const store = recordingsStore();
+  await store.set(filename, data);
+}
+
+export async function getRecording(filename: string): Promise<ArrayBuffer | null> {
+  const store = recordingsStore();
+  return store.get(filename, { type: 'arrayBuffer' });
 }

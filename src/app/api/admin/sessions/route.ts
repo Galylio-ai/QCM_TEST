@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { customAlphabet } from 'nanoid';
-import { loadDB, saveDB, Session } from '@/lib/db';
+import { listSessions, saveSession, Session } from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,8 @@ const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 12);
 
 export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const db = loadDB();
-  const sessions = Object.values(db.sessions)
+  const all = await listSessions();
+  const sessions = all
     .map(s => ({
       token: s.token,
       candidateName: s.candidateName,
@@ -33,7 +33,6 @@ export async function POST(req: NextRequest) {
   const { candidateName, candidateEmail } = body;
   if (!candidateName) return NextResponse.json({ error: 'candidateName required' }, { status: 400 });
 
-  const db = loadDB();
   const token = nanoid();
   const session: Session = {
     token,
@@ -49,8 +48,7 @@ export async function POST(req: NextRequest) {
     antiFraudScore: null,
     recordings: []
   };
-  db.sessions[token] = session;
-  saveDB(db);
+  await saveSession(session);
 
   const proto = req.headers.get('x-forwarded-proto') || 'http';
   const host = req.headers.get('host') || 'localhost:3000';

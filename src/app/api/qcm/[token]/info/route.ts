@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadDB } from '@/lib/db';
+import { getSession } from '@/lib/db';
 import { TOTAL_QUESTIONS, DURATION_PER_QUESTION_SEC } from '@/lib/questions';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
-  const db = loadDB();
-  const s = db.sessions[params.token];
+  const s = await getSession(params.token);
   if (!s) return NextResponse.json({ error: 'Lien invalide' }, { status: 404 });
   return NextResponse.json({
     candidateName: s.candidateName,

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadDB, saveDB } from '@/lib/db';
+import { getSession, saveSession } from '@/lib/db';
 import { buildOrderedQuestions } from '@/lib/shuffle';
 import { QUESTIONS, TOTAL_QUESTIONS } from '@/lib/questions';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(_req: NextRequest, { params }: { params: { token: string } }) {
-  const db = loadDB();
-  const s = db.sessions[params.token];
+  const s = await getSession(params.token);
   if (!s) return NextResponse.json({ error: 'Lien invalide' }, { status: 404 });
   if (s.status === 'submitted') return NextResponse.json({ error: 'QCM déjà soumis' }, { status: 403 });
 
@@ -20,16 +19,13 @@ export async function POST(_req: NextRequest, { params }: { params: { token: str
     const givenOrig = (given === undefined || given === null) ? null : o.choiceOrder[given];
     const correct = givenOrig !== null && givenOrig === QUESTIONS[o.originalIndex].answer;
     if (correct) score++;
-    if (o.antiFraud) {
-      antiFraudTotal++;
-      if (correct) antiFraudCorrect++;
-    }
+    if (o.antiFraud) { antiFraudTotal++; if (correct) antiFraudCorrect++; }
   }
   s.score = score;
   s.antiFraudScore = `${antiFraudCorrect}/${antiFraudTotal}`;
   s.status = 'submitted';
   s.submittedAt = new Date().toISOString();
-  saveDB(db);
+  await saveSession(s);
 
   return NextResponse.json({ score, total: TOTAL_QUESTIONS, antiFraudScore: s.antiFraudScore });
 }

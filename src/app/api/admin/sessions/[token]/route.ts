@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadDB, saveDB } from '@/lib/db';
+import { getSession, deleteSession } from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 import { buildOrderedQuestions } from '@/lib/shuffle';
 import { QUESTIONS } from '@/lib/questions';
@@ -8,8 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, { params }: { params: { token: string } }) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const db = loadDB();
-  const s = db.sessions[params.token];
+  const s = await getSession(params.token);
   if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const ordered = buildOrderedQuestions(s.token);
@@ -36,9 +35,8 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
 
 export async function DELETE(req: NextRequest, { params }: { params: { token: string } }) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const db = loadDB();
-  if (!db.sessions[params.token]) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  delete db.sessions[params.token];
-  saveDB(db);
+  const s = await getSession(params.token);
+  if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  await deleteSession(params.token);
   return NextResponse.json({ ok: true });
 }
