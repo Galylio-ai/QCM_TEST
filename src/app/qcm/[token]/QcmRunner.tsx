@@ -19,8 +19,16 @@ export default function QcmRunner({ token }: { token: string }) {
   const [warn, setWarn] = useState<{ title: string; text: string } | null>(null);
   const [finalScore, setFinalScore] = useState<string>('--');
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Callback ref: wires the stream to the video element the moment it mounts into the DOM.
+  // Using a plain ref would miss the mount because the stream is obtained before the QCM
+  // phase renders the <video> element.
+  const videoRef = useCallback((el: HTMLVideoElement | null) => {
+    if (el && streamRef.current) {
+      el.srcObject = streamRef.current;
+    }
+  }, []);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
   const submittedRef = useRef(false);
@@ -214,7 +222,6 @@ export default function QcmRunner({ token }: { token: string }) {
       audio: true
     });
     streamRef.current = stream;
-    if (videoRef.current) videoRef.current.srcObject = stream;
 
     stream.getTracks().forEach(t => {
       t.onended = () => logEvent('media_track_ended', true, { kind: t.kind });
