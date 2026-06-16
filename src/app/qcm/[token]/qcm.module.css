@@ -1,0 +1,49 @@
+.container { max-width: 880px; margin: 0 auto; padding: 24px; user-select: none; -webkit-user-select: none; }
+.card { background: #1e293b; border-radius: 12px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+.card h1 { font-size: 22px; margin-bottom: 12px; color: #f1f5f9; }
+.card h2 { font-size: 18px; margin-bottom: 16px; color: #f1f5f9; }
+.card p { line-height: 1.6; margin-bottom: 12px; color: #cbd5e1; }
+.muted { color: #94a3b8; font-size: 14px; }
+
+.btn { background: #3b82f6; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; cursor: pointer; font-weight: 600; }
+.btn:hover { background: #2563eb; }
+.btn:disabled { background: #475569; cursor: not-allowed; }
+
+.rules { background: #0c1626; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #f59e0b; }
+.rules ul { margin-left: 20px; line-height: 1.9; }
+.rules li { color: #cbd5e1; }
+
+.headerBar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 12px 20px; background: #1e293b; border-radius: 10px; position: sticky; top: 0; z-index: 10; }
+.progress { font-size: 14px; color: #94a3b8; }
+.timer { font-size: 24px; font-weight: bold; color: #f59e0b; min-width: 70px; text-align: right; }
+.timer.danger { color: #ef4444; animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+.questionText { font-size: 18px; line-height: 1.6; margin-bottom: 24px; color: #f1f5f9; font-weight: 500; }
+
+.choices { display: flex; flex-direction: column; gap: 12px; }
+.choice { background: #0c1626; border: 2px solid #334155; padding: 16px 20px; border-radius: 10px; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 14px; }
+.choice:hover { border-color: #3b82f6; background: #1a2942; }
+.choice.selected { border-color: #3b82f6; background: #1d3a6b; }
+.letter { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #334155; color: #f1f5f9; font-weight: bold; flex-shrink: 0; }
+.choice.selected .letter { background: #3b82f6; }
+.text { flex: 1; color: #e2e8f0; }
+
+.actions { margin-top: 24px; display: flex; justify-content: flex-end; }
+
+.checkboxRow { display: flex; align-items: center; gap: 10px; margin: 14px 0; color: #cbd5e1; }
+.checkboxRow input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
+.camPreview { position: fixed; bottom: 16px; right: 16px; width: 160px; height: 120px; border-radius: 10px; overflow: hidden; border: 2px solid #3b82f6; background: #000; z-index: 50; }
+.camPreview video { width: 100%; height: 100%; object-fit: cover; }
+.camStatus { position: absolute; top: 4px; left: 4px; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(239,68,68,.9); color: white; z-index: 2; }
+.camStatus.ok { background: rgba(34,197,94,.9); }
+
+.warningOverlay { position: fixed; inset: 0; background: rgba(220,38,38,.95); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 40px; text-align: center; }
+.warningOverlay h2 { font-size: 32px; margin-bottom: 16px; color: white; }
+.warningOverlay p { color: white; font-size: 18px; max-width: 600px; }
+
+.submitOverlay { position: fixed; inset: 0; background: rgba(15,23,42,.96); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 40px; }
+.resultCard { background: #1e293b; padding: 40px; border-radius: 16px; text-align: center; max-width: 480px; }
+.resultCard h2 { color: #f1f5f9; margin-bottom: 12px; }
+.scoreBig { font-size: 64px; font-weight: bold; color: #3b82f6; margin: 20px 0; }
