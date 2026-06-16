@@ -15,8 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   const detail = ordered.map(o => {
     const givenShuffled = s.answers[String(o.displayIndex)];
     const givenOriginal = (givenShuffled === undefined || givenShuffled === null)
-      ? null
-      : o.choiceOrder[givenShuffled];
+      ? null : o.choiceOrder[givenShuffled];
     const correct = givenOriginal !== null && givenOriginal === QUESTIONS[o.originalIndex].answer;
     return {
       displayIndex: o.displayIndex,
@@ -24,8 +23,8 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       antiFraud: o.antiFraud,
       shuffledChoices: o.shuffledChoices,
       givenShuffledIndex: givenShuffled ?? null,
-      givenAnswer: givenOriginal === null || givenOriginal === undefined ? null : ['A', 'B', 'C', 'D'][givenOriginal],
-      correctAnswer: ['A', 'B', 'C', 'D'][QUESTIONS[o.originalIndex].answer],
+      givenAnswer: givenOriginal === null || givenOriginal === undefined ? null : ['A','B','C','D'][givenOriginal],
+      correctAnswer: ['A','B','C','D'][QUESTIONS[o.originalIndex].answer],
       isCorrect: correct
     };
   });

@@ -113,4 +113,4 @@ export const QUESTIONS: Question[] = [
 ];
 
 export const TOTAL_QUESTIONS = QUESTIONS.length;
-export const DURATION_PER_QUESTION_SEC = 30;
+export const DURATION_PER_QUESTION_SEC = 20;

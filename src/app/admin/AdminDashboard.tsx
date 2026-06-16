@@ -90,6 +90,7 @@ export default function AdminDashboard() {
 
   const onCreate = async () => {
     if (!cName.trim()) return alert('Nom requis');
+    if (!cEmail.trim()) return alert('Email requis — le candidat doit saisir son email pour accéder au test.');
     try {
       const r = await api('/api/admin/sessions', {
         method: 'POST',
@@ -191,7 +192,9 @@ export default function AdminDashboard() {
             {sessions.map(s => (
               <tr key={s.token}>
                 <td><b>{s.candidateName}</b><br /><span className={styles.muted}>{s.candidateEmail}</span></td>
-                <td><span className={`${styles.badge} ${styles[s.status]}`}>{s.status}</span></td>
+                <td><span className={`${styles.badge} ${styles[s.status]}`}>
+                  {s.status === 'submitted' ? 'Terminé' : s.status === 'in_progress' ? 'En cours' : 'En attente'}
+                </span></td>
                 <td><span className={`${styles.score} ${scoreClass(s.score)}`}>{scoreLabel(s.score)}</span></td>
                 <td>{s.antiFraudScore || '—'}</td>
                 <td>{s.suspiciousEvents > 0
@@ -214,7 +217,9 @@ export default function AdminDashboard() {
             <span className={styles.close} onClick={() => setDetail(null)}>×</span>
             <h1>
               {detail.session.candidateName}{' '}
-              <span className={`${styles.badge} ${styles[detail.session.status]}`}>{detail.session.status}</span>
+              <span className={`${styles.badge} ${styles[detail.session.status]}`}>
+                {detail.session.status === 'submitted' ? 'Terminé' : detail.session.status === 'in_progress' ? 'En cours' : 'En attente'}
+              </span>
             </h1>
             <p className={styles.muted}>{detail.session.candidateEmail}</p>
             <p style={{ marginTop: 12 }}>

@@ -4,12 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './qcm.module.css';
 
 type QItem = { displayIndex: number; question: string; choices: string[] };
+type Phase = 'loading' | 'email-gate' | 'intro' | 'qcm' | 'done' | 'invalid';
 
 export default function QcmRunner({ token }: { token: string }) {
-  const [phase, setPhase] = useState<'intro' | 'qcm' | 'done' | 'invalid'>('intro');
-  const [welcome, setWelcome] = useState('Chargement…');
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [candidateName, setCandidateName] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [emailErr, setEmailErr] = useState('');
   const [introErr, setIntroErr] = useState('');
   const [accepted, setAccepted] = useState(false);
+  const [invalidMsg, setInvalidMsg] = useState('');
 
   const [questions, setQuestions] = useState<QItem[]>([]);
   const [current, setCurrent] = useState(0);
@@ -20,24 +24,16 @@ export default function QcmRunner({ token }: { token: string }) {
   const [finalScore, setFinalScore] = useState<string>('--');
 
   const streamRef = useRef<MediaStream | null>(null);
-
-  // Callback ref: wires the stream to the video element the moment it mounts into the DOM.
-  // Using a plain ref would miss the mount because the stream is obtained before the QCM
-  // phase renders the <video> element.
   const videoRef = useCallback((el: HTMLVideoElement | null) => {
-    if (el && streamRef.current) {
-      el.srcObject = streamRef.current;
-    }
+    if (el && streamRef.current) el.srcObject = streamRef.current;
   }, []);
   const recorderRef = useRef<MediaRecorder | null>(null);
-
   const submittedRef = useRef(false);
   const fullscreenExitsRef = useRef(0);
   const visibilityHiddenRef = useRef(0);
-  const phaseRef = useRef(phase);
+  const phaseRef = useRef<Phase>('loading');
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
-  // ===== API helper =====
   const api = useCallback(async (path: string, opts: { method?: string; body?: any } = {}) => {
     const res = await fetch(path, {
       method: opts.method || 'GET',
@@ -62,7 +58,7 @@ export default function QcmRunner({ token }: { token: string }) {
     } catch {}
   }, [token]);
 
-  // ===== Init =====
+  // ===== Init: check link validity =====
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -74,15 +70,28 @@ export default function QcmRunner({ token }: { token: string }) {
           setFinalScore('Déjà soumis');
           return;
         }
-        setWelcome(`Bonjour ${info.candidateName}. Vous allez passer le QCM Psychotechnique Ambassadeur Marketplace. ${info.totalQuestions} questions · ${info.durationPerQuestionSec}s par question.`);
         setDurationSec(info.durationPerQuestionSec);
+        setPhase('email-gate');
       } catch (e: any) {
-        setPhase('invalid');
-        setWelcome(e.message || 'Lien invalide');
+        if (!cancelled) { setInvalidMsg(e.message || 'Lien invalide'); setPhase('invalid'); }
       }
     })();
     return () => { cancelled = true; };
   }, [api, token]);
+
+  // ===== Email gate submit =====
+  const onVerifyEmail = async () => {
+    setEmailErr('');
+    const email = emailInput.trim().toLowerCase();
+    if (!email) { setEmailErr('Veuillez entrer votre adresse email.'); return; }
+    try {
+      const r = await api(`/api/qcm/${token}/verify-email`, { method: 'POST', body: { email } });
+      setCandidateName(r.candidateName);
+      setPhase('intro');
+    } catch (e: any) {
+      setEmailErr(e.message);
+    }
+  };
 
   // ===== Submit final =====
   const submitFinal = useCallback(async () => {
@@ -94,14 +103,14 @@ export default function QcmRunner({ token }: { token: string }) {
     try {
       const r = await api(`/api/qcm/${token}/submit`, { method: 'POST' });
       setFinalScore(`${r.score} / ${r.total}`);
-    } catch (e: any) {
+    } catch {
       setFinalScore('Erreur de soumission');
     }
     setPhase('done');
     setWarn(null);
   }, [api, token]);
 
-  // ===== Anti-cheat global listeners (active during QCM) =====
+  // ===== Anti-cheat listeners (only active during QCM) =====
   useEffect(() => {
     if (phase !== 'qcm') return;
 
@@ -114,24 +123,21 @@ export default function QcmRunner({ token }: { token: string }) {
       const blocked =
         e.key === 'F12' ||
         (e.ctrlKey && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
-        (e.ctrlKey && ['u', 's', 'p', 'c', 'v', 'x', 't', 'n', 'w', 'a'].includes(k)) ||
+        (e.ctrlKey && ['u','s','p','c','v','x','t','n','w','a'].includes(k)) ||
         (e.altKey && k === 'tab') ||
         e.key === 'PrintScreen' ||
-        (e.metaKey && ['t', 'n', 'w'].includes(k));
-      if (blocked) {
-        e.preventDefault();
-        logEvent('blocked_key', true, { key: e.key });
-      }
+        (e.metaKey && ['t','n','w'].includes(k));
+      if (blocked) { e.preventDefault(); logEvent('blocked_key', true, { key: e.key }); }
     };
     const onVisibility = () => {
       if (document.hidden && !submittedRef.current) {
         visibilityHiddenRef.current++;
         logEvent('tab_hidden', true, { count: visibilityHiddenRef.current });
         if (visibilityHiddenRef.current >= 3) {
-          setWarn({ title: 'Trop de changements d\'onglet', text: 'Le test est soumis automatiquement.' });
+          setWarn({ title: "Trop de changements d'onglet", text: 'Le test est soumis automatiquement.' });
           submitFinal();
         } else {
-          setWarn({ title: `Avertissement (${visibilityHiddenRef.current}/3)`, text: 'Ne quittez pas cette fenêtre. Au prochain avertissement, le test sera soumis.' });
+          setWarn({ title: `Avertissement (${visibilityHiddenRef.current}/3)`, text: "Ne quittez pas cette fenêtre. Au prochain avertissement, le test sera soumis." });
         }
       }
     };
@@ -149,11 +155,7 @@ export default function QcmRunner({ token }: { token: string }) {
       }
     };
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!submittedRef.current) {
-        logEvent('attempted_unload', true);
-        e.preventDefault();
-        e.returnValue = '';
-      }
+      if (!submittedRef.current) { logEvent('attempted_unload', true); e.preventDefault(); e.returnValue = ''; }
     };
 
     window.addEventListener('contextmenu', onContextMenu);
@@ -165,7 +167,6 @@ export default function QcmRunner({ token }: { token: string }) {
     window.addEventListener('blur', onBlur);
     document.addEventListener('fullscreenchange', onFullscreenChange);
     window.addEventListener('beforeunload', onBeforeUnload);
-
     return () => {
       window.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('copy', onCopy);
@@ -185,11 +186,7 @@ export default function QcmRunner({ token }: { token: string }) {
     setRemaining(durationSec);
     const id = setInterval(() => {
       setRemaining(r => {
-        if (r <= 1) {
-          clearInterval(id);
-          goNext(true);
-          return 0;
-        }
+        if (r <= 1) { clearInterval(id); goNext(true); return 0; }
         return r - 1;
       });
     }, 1000);
@@ -208,29 +205,15 @@ export default function QcmRunner({ token }: { token: string }) {
     } catch {}
     if (timedOut) logEvent('question_timeout', false, { displayIndex: q.displayIndex });
     setSelected(null);
-    if (current + 1 >= questions.length) {
-      submitFinal();
-    } else {
-      setCurrent(c => c + 1);
-    }
+    if (current + 1 >= questions.length) { submitFinal(); } else { setCurrent(c => c + 1); }
   }, [api, current, logEvent, questions, selected, submitFinal, token]);
 
-  // ===== Start media + QCM =====
   const startMedia = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 320, height: 240 },
-      audio: true
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: true });
     streamRef.current = stream;
-
-    stream.getTracks().forEach(t => {
-      t.onended = () => logEvent('media_track_ended', true, { kind: t.kind });
-    });
-
+    stream.getTracks().forEach(t => { t.onended = () => logEvent('media_track_ended', true, { kind: t.kind }); });
     try {
-      const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-        ? 'video/webm;codecs=vp8,opus'
-        : 'video/webm';
+      const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
       const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 250_000 });
       recorderRef.current = recorder;
       recorder.ondataavailable = async ev => {
@@ -241,9 +224,7 @@ export default function QcmRunner({ token }: { token: string }) {
         }
       };
       recorder.start(60_000);
-    } catch (e: any) {
-      logEvent('recorder_error', false, { msg: String(e) });
-    }
+    } catch (e: any) { logEvent('recorder_error', false, { msg: String(e) }); }
   };
 
   const onStart = async () => {
@@ -269,16 +250,14 @@ export default function QcmRunner({ token }: { token: string }) {
     }
   };
 
-  // ===== Render =====
+  // ===== Renders =====
+
+  if (phase === 'loading') {
+    return <div className={styles.container}><div className={styles.card}><p className={styles.muted}>Chargement…</p></div></div>;
+  }
+
   if (phase === 'invalid') {
-    return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <h1>Lien invalide</h1>
-          <p>{welcome}</p>
-        </div>
-      </div>
-    );
+    return <div className={styles.container}><div className={styles.card}><h1>Lien invalide</h1><p>{invalidMsg}</p></div></div>;
   }
 
   if (phase === 'done') {
@@ -287,9 +266,35 @@ export default function QcmRunner({ token }: { token: string }) {
         <div className={styles.resultCard}>
           <h2>QCM terminé</h2>
           <div className={styles.scoreBig}>{finalScore}</div>
-          <p className={styles.muted}>
-            Votre score a bien été enregistré. Vous pouvez fermer cette fenêtre. Le recruteur vous contactera pour la suite (entretien visio).
+          <p className={styles.muted}>Votre score a bien été enregistré. Vous pouvez fermer cette fenêtre. Le recruteur vous contactera pour la suite (entretien visio).</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'email-gate') {
+    return (
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <h1>QCM Psychotechnique – Ambassadeur Marketplace</h1>
+          <p style={{ marginBottom: 20, color: '#cbd5e1' }}>
+            Veuillez entrer votre adresse email pour accéder à votre test.
           </p>
+          <input
+            type="email"
+            placeholder="votre@email.com"
+            value={emailInput}
+            onChange={e => setEmailInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && onVerifyEmail()}
+            style={{
+              width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #334155',
+              background: '#0c1626', color: '#e2e8f0', fontSize: 15, marginBottom: 12
+            }}
+          />
+          {emailErr && <p style={{ color: '#ef4444', marginBottom: 12 }}>{emailErr}</p>}
+          <div className={styles.actions}>
+            <button className={styles.btn} onClick={onVerifyEmail}>Confirmer</button>
+          </div>
         </div>
       </div>
     );
@@ -300,8 +305,9 @@ export default function QcmRunner({ token }: { token: string }) {
       <div className={styles.container}>
         <div className={styles.card}>
           <h1>QCM Psychotechnique – Ambassadeur Marketplace</h1>
-          <p className={styles.muted}>{welcome}</p>
-
+          <p className={styles.muted}>
+            Bonjour <b>{candidateName}</b>. Vous allez passer le QCM — 100 questions · {durationSec}s par question.
+          </p>
           <div className={styles.rules}>
             <h2>Avant de commencer – Règles importantes</h2>
             <ul>
@@ -314,23 +320,12 @@ export default function QcmRunner({ token }: { token: string }) {
               <li>Si vous ne répondez pas en 30s, la question passe et la réponse est comptée comme vide.</li>
             </ul>
           </div>
-
           <div className={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              id="accept"
-              checked={accepted}
-              onChange={e => setAccepted(e.target.checked)}
-            />
-            <label htmlFor="accept" style={{ cursor: 'pointer' }}>
-              J'accepte ces règles et l'enregistrement caméra/micro pendant le test.
-            </label>
+            <input type="checkbox" id="accept" checked={accepted} onChange={e => setAccepted(e.target.checked)} />
+            <label htmlFor="accept" style={{ cursor: 'pointer' }}>J'accepte ces règles et l'enregistrement caméra/micro pendant le test.</label>
           </div>
-
           <div className={styles.actions}>
-            <button className={styles.btn} disabled={!accepted} onClick={onStart}>
-              Démarrer le QCM
-            </button>
+            <button className={styles.btn} disabled={!accepted} onClick={onStart}>Démarrer le QCM</button>
           </div>
           {introErr && <p style={{ color: '#ef4444', marginTop: 12 }}>{introErr}</p>}
         </div>
@@ -350,11 +345,7 @@ export default function QcmRunner({ token }: { token: string }) {
         <div className={styles.questionText}>{q?.question}</div>
         <div className={styles.choices}>
           {q?.choices.map((text, i) => (
-            <div
-              key={i}
-              className={`${styles.choice} ${selected === i ? styles.selected : ''}`}
-              onClick={() => setSelected(i)}
-            >
+            <div key={i} className={`${styles.choice} ${selected === i ? styles.selected : ''}`} onClick={() => setSelected(i)}>
               <span className={styles.letter}>{'ABCD'[i]}</span>
               <span className={styles.text}>{text}</span>
             </div>
@@ -376,11 +367,7 @@ export default function QcmRunner({ token }: { token: string }) {
         <div className={styles.warningOverlay}>
           <h2>{warn.title}</h2>
           <p>{warn.text}</p>
-          <button
-            className={styles.btn}
-            onClick={dismissWarn}
-            style={{ marginTop: 24, background: 'white', color: '#dc2626' }}
-          >
+          <button className={styles.btn} onClick={dismissWarn} style={{ marginTop: 24, background: 'white', color: '#dc2626' }}>
             Revenir au test
           </button>
         </div>

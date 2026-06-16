@@ -1,4 +1,5 @@
-import { getStore } from '@netlify/blobs';
+import { Readable } from 'stream';
+import { getDB, getGridFSBucket } from './mongodb';
 
 export type SessionEvent = {
   type: string;
@@ -11,6 +12,7 @@ export type Recording = {
   filename: string;
   size: number;
   uploadedAt: string;
+  gridfsId?: string;
 };
 
 export type Session = {
@@ -28,45 +30,55 @@ export type Session = {
   recordings: Recording[];
 };
 
-function sessionsStore() {
-  return getStore('qcm-sessions');
-}
-
-function recordingsStore() {
-  return getStore('qcm-recordings');
+async function col() {
+  const db = await getDB();
+  return db.collection<Session>('sessions');
 }
 
 export async function getSession(token: string): Promise<Session | null> {
-  const store = sessionsStore();
-  return store.get(token, { type: 'json' });
+  const c = await col();
+  return c.findOne({ token }, { projection: { _id: 0 } });
+}
+
+export async function getSessionByEmail(email: string): Promise<Session | null> {
+  if (!email) return null;
+  const c = await col();
+  return c.findOne({ candidateEmail: email.toLowerCase().trim() }, { projection: { _id: 0 } });
 }
 
 export async function saveSession(session: Session): Promise<void> {
-  const store = sessionsStore();
-  await store.set(session.token, JSON.stringify(session));
+  const c = await col();
+  await c.replaceOne({ token: session.token }, session, { upsert: true });
 }
 
 export async function deleteSession(token: string): Promise<void> {
-  const store = sessionsStore();
-  await store.delete(token);
+  const c = await col();
+  await c.deleteOne({ token });
 }
 
 export async function listSessions(): Promise<Session[]> {
-  const store = sessionsStore();
-  const { blobs } = await store.list();
-  if (!blobs.length) return [];
-  const sessions = await Promise.all(
-    blobs.map(b => store.get(b.key, { type: 'json' }) as Promise<Session>)
-  );
-  return sessions.filter(Boolean);
+  const c = await col();
+  return c.find({}, { projection: { _id: 0 } }).toArray();
 }
 
-export async function saveRecording(filename: string, data: Buffer): Promise<void> {
-  const store = recordingsStore();
-  await store.set(filename, data);
+// GridFS recordings
+export async function saveRecording(filename: string, data: Buffer): Promise<string> {
+  const bucket = await getGridFSBucket();
+  return new Promise((resolve, reject) => {
+    const readable = Readable.from(data);
+    const uploadStream = bucket.openUploadStream(filename, {
+      metadata: { uploadedAt: new Date().toISOString() }
+    });
+    readable.pipe(uploadStream);
+    uploadStream.on('finish', () => resolve(uploadStream.id.toString()));
+    uploadStream.on('error', reject);
+  });
 }
 
-export async function getRecording(filename: string): Promise<ArrayBuffer | null> {
-  const store = recordingsStore();
-  return store.get(filename, { type: 'arrayBuffer' });
+export async function getRecordingStream(filename: string) {
+  const bucket = await getGridFSBucket();
+  // Find by filename, take the most recent
+  const files = await bucket.find({ filename }).sort({ uploadDate: -1 }).limit(1).toArray();
+  if (!files.length) return null;
+  return { stream: bucket.openDownloadStream(files[0]._id), size: files[0].length };
 }

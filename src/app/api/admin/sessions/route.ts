@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { customAlphabet } from 'nanoid';
-import { listSessions, saveSession, Session } from '@/lib/db';
+import { listSessions, saveSession, getSessionByEmail, Session } from '@/lib/db';
 import { isAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -32,12 +32,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { candidateName, candidateEmail } = body;
   if (!candidateName) return NextResponse.json({ error: 'candidateName required' }, { status: 400 });
+  if (!candidateEmail) return NextResponse.json({ error: 'candidateEmail required' }, { status: 400 });
+
+  const normalizedEmail = candidateEmail.toLowerCase().trim();
+  const existing = await getSessionByEmail(normalizedEmail);
+  if (existing) {
+    return NextResponse.json({ error: `Ce candidat (${normalizedEmail}) a déjà un QCM assigné (statut: ${existing.status}).` }, { status: 409 });
+  }
 
   const token = nanoid();
   const session: Session = {
     token,
     candidateName,
-    candidateEmail: candidateEmail || '',
+    candidateEmail: normalizedEmail,
     createdAt: new Date().toISOString(),
     status: 'pending',
     startedAt: null,

@@ -17,10 +17,10 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
   const safeToken = params.token.replace(/[^a-z0-9]/gi, '');
   const filename = `${safeToken}_${Date.now()}.webm`;
   const buf = Buffer.from(await (file as Blob).arrayBuffer());
-  await saveRecording(filename, buf);
+  const gridfsId = await saveRecording(filename, buf);
 
   s.recordings = s.recordings || [];
-  s.recordings.push({ filename, size: buf.length, uploadedAt: new Date().toISOString() });
+  s.recordings.push({ filename, size: buf.length, uploadedAt: new Date().toISOString(), gridfsId });
   await saveSession(s);
 
   return NextResponse.json({ ok: true, filename });

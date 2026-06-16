@@ -11,9 +11,7 @@ export async function POST(_req: NextRequest, { params }: { params: { token: str
   if (s.status === 'submitted') return NextResponse.json({ error: 'QCM déjà soumis' }, { status: 403 });
 
   const ordered = buildOrderedQuestions(s.token);
-  let score = 0;
-  let antiFraudCorrect = 0;
-  let antiFraudTotal = 0;
+  let score = 0, antiFraudCorrect = 0, antiFraudTotal = 0;
   for (const o of ordered) {
     const given = s.answers[String(o.displayIndex)];
     const givenOrig = (given === undefined || given === null) ? null : o.choiceOrder[given];
