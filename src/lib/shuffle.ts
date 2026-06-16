@@ -44,7 +44,7 @@ export function buildOrderedQuestions(token: string): OrderedQuestion[] {
     const choiceOrder = shuffle([0, 1, 2, 3], choiceSeed);
     return {
       originalIndex: origIdx,
-      displayIndex,
+      displayIndex: displayIdx,
       question: q.q,
       antiFraud: !!q.antiFraud,
       choiceOrder,
