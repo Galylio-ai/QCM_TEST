@@ -29,6 +29,7 @@ export default function QcmRunner({ token }: { token: string }) {
   }, []);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const submittedRef = useRef(false);
+  const goingNextRef = useRef(false);
   const fullscreenExitsRef = useRef(0);
   const visibilityHiddenRef = useRef(0);
   const phaseRef = useRef<Phase>('loading');
@@ -194,18 +195,24 @@ export default function QcmRunner({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current, phase]);
 
-  const goNext = useCallback(async (timedOut: boolean) => {
+  const goNext = useCallback((timedOut: boolean) => {
+    if (goingNextRef.current) return;
+    goingNextRef.current = true;
     const q = questions[current];
-    if (!q) return;
-    try {
-      await api(`/api/qcm/${token}/answer`, {
-        method: 'POST',
-        body: { displayIndex: q.displayIndex, shuffledChoiceIndex: selected }
-      });
-    } catch {}
+    if (!q) { goingNextRef.current = false; return; }
+    // Fire-and-forget: save answer in background without blocking UI
+    api(`/api/qcm/${token}/answer`, {
+      method: 'POST',
+      body: { displayIndex: q.displayIndex, shuffledChoiceIndex: selected }
+    }).catch(() => {});
     if (timedOut) logEvent('question_timeout', false, { displayIndex: q.displayIndex });
     setSelected(null);
-    if (current + 1 >= questions.length) { submitFinal(); } else { setCurrent(c => c + 1); }
+    if (current + 1 >= questions.length) {
+      submitFinal();
+    } else {
+      setCurrent(c => c + 1);
+      goingNextRef.current = false;
+    }
   }, [api, current, logEvent, questions, selected, submitFinal, token]);
 
   const startMedia = async () => {
